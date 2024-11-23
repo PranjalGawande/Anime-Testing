@@ -1,0 +1,4 @@
+com\review\anime\AnimeApplicationTests.class
+com\review\anime\Service\ReviewServiceUnitTest.class
+com\review\anime\Service\WatchListServiceUnitTest.class
+com\review\anime\Service\UserServiceUnitTest.class
