@@ -43,11 +43,14 @@ public class ReviewService {
     public void deleteComment(Integer commentId) {
         logger.info("Deleting comment with ID: {}", commentId);
         try {
+            if (!reviewRepository.existsById(commentId)) {
+                throw new IllegalArgumentException("Comment with ID " + commentId + " does not exist.");
+            }
             reviewRepository.deleteById(commentId);
             logger.info("Successfully deleted comment with ID: {}", commentId);
         } catch (Exception e) {
             logger.error("Error deleting comment with ID: {}", commentId, e);
-            throw e; // Re-throw the exception after logging it
+            throw e;
         }
     }
 }

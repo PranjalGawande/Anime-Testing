@@ -35,16 +35,20 @@ public class AnimeController {
     public ResponseEntity<String> getCurrentSeasonAnime(
             @RequestParam(value = "filter", required = false) String filter,
             @RequestParam(value = "limit", required = false) Integer limit,
-            @RequestParam(value = "page", required = false) Integer page){
+            @RequestParam(value = "page", required = false) Integer page) {
         try {
             String currentSeasonAnime = animeService.getCurrentSeasonAnime(filter, limit, page);
             logger.info("Successfully fetched current season anime");
             return ResponseEntity.ok(currentSeasonAnime);
+        } catch (IllegalArgumentException e) {
+            logger.error("Invalid parameter for current season anime: filter={}, limit={}, page={}", filter, limit, page, e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid page number: " + e.getMessage());
         } catch (Exception e) {
             logger.error("Error retrieving current season anime", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error retrieving current season anime: " + e.getMessage());
         }
     }
+
 
     @GetMapping("/upcoming-anime")
     public ResponseEntity<String> getUpcomingAnime(
@@ -64,18 +68,21 @@ public class AnimeController {
 
     @GetMapping("/top-anime")
     public ResponseEntity<String> getTopAnime(
-            @RequestParam(value = "page", required = false) Integer page
-    ) {
+            @RequestParam(value = "page", required = false) Integer page) {
         logger.info("Fetching top anime for page: {}", page);
         try {
             String topAnime = animeService.getTopAnime(page);
             logger.info("Successfully fetched top anime");
             return ResponseEntity.ok(topAnime);
+        } catch (IllegalArgumentException e) {
+            logger.error("Invalid page parameter for top anime: {}", page, e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid page number: " + e.getMessage());
         } catch (Exception e) {
             logger.error("Error retrieving top anime", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error retrieving top anime: " + e.getMessage());
         }
     }
+
 
     @GetMapping("/top-characters")
     public ResponseEntity<String> getTopCharacters() {
@@ -125,33 +132,46 @@ public class AnimeController {
     ) {
         logger.info("Fetching explore anime list with parameters: page={}, genres={}", page, genres);
         try {
-            String animeDetails = animeService.getAnimeExplore(
-                    page, genres
-            );
+            String animeDetails = animeService.getAnimeExplore(page, genres);
+            // Check if animeDetails is null
+            if (animeDetails == null) {
+                logger.error("No anime details found for the given parameters: page={}, genres={}", page, genres);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body("Error retrieving anime details: No data available");
+            }
             logger.info("Successfully fetched explore anime list");
             return ResponseEntity.ok(animeDetails);
+        } catch (IllegalArgumentException e) {
+            logger.error("Invalid parameters for explore anime list: page={}, genres={}", page, genres, e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid genre: " + e.getMessage());
         } catch (Exception e) {
-            logger.error("Error retreving explore anime list", e);
+            logger.error("Error retrieving explore anime list", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error retrieving anime details: " + e.getMessage());
         }
     }
 
+
+
     @GetMapping("search")
     public ResponseEntity<String> searchAnime(
             @RequestParam(name = "q") String query,
-            @RequestParam(name = "page", defaultValue = "1") int page
-    ) {
+            @RequestParam(name = "page", defaultValue = "1") int page) {
         logger.info("Searching anime with query: {}, page: {}", query, page);
         try {
             String animeDetails = animeService.getAnimeSearch(query, page);
             logger.info("Successfully searched anime");
             return ResponseEntity.ok(animeDetails);
+        } catch (IllegalArgumentException e) {
+            logger.error("Invalid search input: query={}, page={}", query, page, e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Invalid search input: " + e.getMessage());
         } catch (Exception e) {
             logger.error("Error searching anime", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Error searching anime: " + e.getMessage());
         }
     }
+
 
     @GetMapping("/details/{id}")
     public ResponseEntity<String> getAnimeDetailsById(@PathVariable("id") String id) {
@@ -160,6 +180,10 @@ public class AnimeController {
             String animeDetails = animeService.getAnimeDetailsById(id);
             logger.info("Successfully fetched anime details for id: {}", id);
             return ResponseEntity.ok(animeDetails);
+        } catch (IllegalArgumentException e) {
+            logger.error("Invalid ID provided for anime details: {}", id, e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Invalid ID: " + e.getMessage());
         } catch (Exception e) {
             logger.error("Error retrieving anime details for id: {}", id, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

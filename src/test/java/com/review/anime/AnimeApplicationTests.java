@@ -3,105 +3,196 @@ package com.review.anime;
 import com.review.anime.entites.Role;
 import com.review.anime.entites.User;
 import com.review.anime.service.UserService;
-import jakarta.transaction.Transactional;
 import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.*;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
+import java.util.logging.Logger;
 
-import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
+		import static org.mockito.Mockito.*;
 
 @SpringBootTest
 class AnimeApplicationTests {
 
-	private static final Logger logger = LogManager.getLogger(AnimeApplicationTests.class);
-
 	@Mock
 	private UserService userService;
+
+	@Mock
+	private RestTemplateBuilder restTemplateBuilder;
+
+	@Captor
+	private ArgumentCaptor<User> userCaptor;
+
+	private AnimeApplication.AdminIntiailizer adminInitializer;
+	private AnimeApplication animeApplication;
+
+//	private static final Logger logger = LogManager.getLogger(AnimeApplicationTests.class);
+
 
 	@InjectMocks
 	private AnimeApplication.AdminIntiailizer adminIntiailizer;
 
-	@BeforeEach
-	void setUp() {
-		MockitoAnnotations.openMocks(this); // Initializes the mocks
-	}
+//	@BeforeEach
+//	void setUp() {
+//		MockitoAnnotations.openMocks(this); // Initializes the mocks
+//	}
 
 	@Test
 	void contextLoads() {
 		// This test ensures the Spring Boot context loads correctly
 	}
-
-//	@Test
-//	void testAdminUserCreationWhenNoAdminsExist() throws Exception {
-//		// Mocking the behavior of getAdminList() to return an empty list
-//		when(userService.getAdminList()).thenReturn(Collections.emptyList());
-//
-//		// Run the initializer
-//		adminIntiailizer.run();
-//
-//		// Verifying that addUser was called and capturing the user parameter
-//		verify(userService, times(1)).addUser(userCaptor.capture());
-//
-//		// You can then assert on the captured user
-//		User capturedUser = userCaptor.getValue();
-//		assertNotNull(capturedUser);
-//		assertEquals("admin@gmail.com", capturedUser.getEmail());
-//	}
-
-	@Test
-	void testAdminUserExistsAndNoNewAdminCreated() throws Exception {
-		// Given: An admin user already exists
-		User existingAdmin = new User();
-		existingAdmin.setEmail("admin@gmail.com");
-		existingAdmin.setPassword("Admin");
-		existingAdmin.setName("Admin");
-		existingAdmin.setRole(Role.ADMIN);
-		existingAdmin.setStatus(true);
-		when(userService.getAdminList()).thenReturn(java.util.Collections.singletonList(existingAdmin));
-
-		// When: The run method is invoked
-		adminIntiailizer.run();
-
-		// Then: The addUser method should NOT be called since an admin already exists
-		verify(userService, times(0)).addUser(any(User.class)); // Verify that addUser is not called
+	@BeforeEach
+	void setUp() {
+		adminInitializer = new AnimeApplication.AdminIntiailizer(userService);
+		animeApplication = new AnimeApplication();
 	}
 
-//	@Test
-//	void testLoggingWhenCreatingAdmin() throws Exception {
-//		// Mocking the behavior of getAdminList() to return an empty list
-//		when(userService.getAdminList()).thenReturn(Collections.emptyList());
-//
-//		// Run the initializer
-//		adminIntiailizer.run();
-//
-//		// Verifying that addUser was called
-//		verify(userService, times(1)).addUser(any(User.class));
-//	}
+	@Test
+	void testRestTemplateBean() {
+		// Arrange
+		RestTemplate expectedRestTemplate = new RestTemplate();
+		when(restTemplateBuilder.build()).thenReturn(expectedRestTemplate);
+
+		// Act
+		RestTemplate actualRestTemplate = animeApplication.restTemplate(restTemplateBuilder);
+
+		// Assert
+		assertNotNull(actualRestTemplate, "RestTemplate should not be null");
+		verify(restTemplateBuilder).build();
+	}
 
 	@Test
-	void testLoggingWhenAdminExists() throws Exception {
-		// Given: An admin already exists
-		User existingAdmin = new User();
-		existingAdmin.setEmail("admin@gmail.com");
-		existingAdmin.setPassword("Admin");
-		existingAdmin.setName("Admin");
-		existingAdmin.setRole(Role.ADMIN);
-		existingAdmin.setStatus(true);
-		when(userService.getAdminList()).thenReturn(java.util.Collections.singletonList(existingAdmin));
+	void testRestTemplateBeanNotNull() {
+		// Arrange
+		when(restTemplateBuilder.build()).thenReturn(new RestTemplate());
 
-		// When: The run method is invoked
-		adminIntiailizer.run();
+		// Act
+		RestTemplate restTemplate = animeApplication.restTemplate(restTemplateBuilder);
 
-		// Then: Check that the logger was NOT called to log the admin creation
-		verify(userService, times(0)).addUser(any(User.class)); // Ensure addUser is not called
+		// Assert
+		assertNotNull(restTemplate, "RestTemplate should not be null");
+	}
+
+	@Test
+	void testAdminInitialization_WhenNoAdminExists() throws Exception {
+		// Arrange
+		when(userService.getAdminList()).thenReturn(Collections.emptyList());
+
+		// Act
+		adminInitializer.run();
+
+		// Assert
+		verify(userService).getAdminList();
+		verify(userService).addUser(userCaptor.capture());
+
+		User capturedUser = userCaptor.getValue();
+		assertEquals("admin@gmail.com", capturedUser.getEmail());
+		assertEquals("Admin", capturedUser.getPassword());
+		assertEquals("Admin", capturedUser.getName());
+		assertEquals(Role.ADMIN, capturedUser.getRole());
+		assertTrue(capturedUser.isStatus());
+	}
+
+	@Test
+	void testAdminInitialization_WhenAdminAlreadyExists() throws Exception {
+		// Arrange
+		List<User> existingAdmins = new ArrayList<>();
+		existingAdmins.add(new User());
+		when(userService.getAdminList()).thenReturn(existingAdmins);
+
+		// Act
+		adminInitializer.run();
+
+		// Assert
+		verify(userService).getAdminList();
+		verify(userService, never()).addUser(any(User.class));
+	}
+
+	@Test
+	void testAdminInitialization_VerifyAllUserFields() throws Exception {
+		// Arrange
+		when(userService.getAdminList()).thenReturn(Collections.emptyList());
+
+		// Act
+		adminInitializer.run();
+
+		// Assert
+		verify(userService).addUser(userCaptor.capture());
+		User adminUser = userCaptor.getValue();
+
+		// Verify each field was set correctly
+		assertAll(
+				() -> assertEquals("admin@gmail.com", adminUser.getEmail(), "Email should be set correctly"),
+				() -> assertEquals("Admin", adminUser.getPassword(), "Password should be set correctly"),
+				() -> assertEquals("Admin", adminUser.getName(), "Name should be set correctly"),
+				() -> assertEquals(Role.ADMIN, adminUser.getRole(), "Role should be set to ADMIN"),
+				() -> assertTrue(adminUser.isStatus(), "Status should be set to true")
+		);
+	}
+
+	@Test
+	void testAdminInitialization_VerifyTransactional() throws Exception {
+		// Arrange
+		when(userService.getAdminList()).thenReturn(Collections.emptyList());
+		doThrow(new RuntimeException("Database error")).when(userService).addUser(any(User.class));
+
+		// Act & Assert
+		assertThrows(RuntimeException.class, () -> adminInitializer.run(),
+				"Should throw exception when database operation fails");
+	}
+
+	@Test
+	void testAdminInitialization_CheckAdminListMultipleTimes() throws Exception {
+		// Arrange
+		when(userService.getAdminList())
+				.thenReturn(Collections.emptyList())
+				.thenReturn(Collections.singletonList(new User()));
+
+		// Act
+		adminInitializer.run();
+		adminInitializer.run();
+
+		// Assert
+		verify(userService, times(2)).getAdminList();
+		verify(userService, times(1)).addUser(any(User.class));
+	}
+
+	@Test
+	void testMain() {
+		// This test verifies that the main method can be called without throwing exceptions
+		assertDoesNotThrow(() -> AnimeApplication.main(new String[]{}),
+				"Main method should execute without throwing exceptions");
+	}
+
+	@Test
+	void testAdminInitializer_Constructor() {
+		// Arrange & Act
+		AnimeApplication.AdminIntiailizer initializer = new AnimeApplication.AdminIntiailizer(userService);
+
+		// Assert
+		assertNotNull(initializer, "AdminInitializer should be created successfully");
+	}
+
+	@Test
+	void testAdminInitialization_NullUserService() {
+		// Act & Assert
+		NullPointerException exception = assertThrows(NullPointerException.class,
+				() -> new AnimeApplication.AdminIntiailizer(null),
+				"Should throw NullPointerException when UserService is null");
+
+		// Verify the exception message
+		assertEquals("UserService cannot be null", exception.getMessage(),
+				"Exception message should indicate that UserService cannot be null");
 	}
 }
-
-
-

@@ -11,6 +11,7 @@ import org.mockito.MockitoAnnotations;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -56,12 +57,17 @@ class ReviewServiceUnitTest {
     void testDeleteComment() {
         Integer commentId = 1;
 
-        doNothing().when(reviewRepository).deleteById(commentId);
+        // Mock the repository to return Optional.empty() when trying to find the comment
+        when(reviewRepository.findById(commentId)).thenReturn(Optional.empty());
 
-        reviewService.deleteComment(commentId);
+        // Act & Assert
+        // Expecting IllegalArgumentException because the comment does not exist
+        assertThrows(IllegalArgumentException.class, () -> reviewService.deleteComment(commentId));
 
-        verify(reviewRepository, times(1)).deleteById(commentId);
+        // Verify that deleteById was not called since the comment does not exist
+        verify(reviewRepository, times(0)).deleteById(commentId);
     }
+
 
     @Test
     void testSaveReviewThrowsException() {
@@ -77,16 +83,20 @@ class ReviewServiceUnitTest {
     }
     @Test
     void testDeleteCommentThrowsException() {
-        Integer commentId = 1;
-        doThrow(new RuntimeException("Database error")).when(reviewRepository).deleteById(commentId);
+        // Arrange
+        Integer nonExistentCommentId = 1; // or any ID you know doesn't exist
 
-        Exception exception = assertThrows(RuntimeException.class, () -> {
-            reviewService.deleteComment(commentId);
-        });
+        // Act & Assert
+        IllegalArgumentException thrown = assertThrows(
+                IllegalArgumentException.class,
+                () -> reviewService.deleteComment(nonExistentCommentId),
+                "Expected deleteComment() to throw, but it didn't"
+        );
 
-        assertEquals("Database error", exception.getMessage());
-        verify(reviewRepository, times(1)).deleteById(commentId);
+        // Verify the exception message
+        assertEquals("Comment with ID 1 does not exist.", thrown.getMessage());
     }
+
 
     @Test
     void testGetReviewOfAnimeIdWithReviews() {

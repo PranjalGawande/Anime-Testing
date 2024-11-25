@@ -47,6 +47,9 @@ public class User implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
+        if (role == null) {
+            return List.of(); // Return an empty list when role is null
+        }
         return role.getUserAuthorities();
     }
 

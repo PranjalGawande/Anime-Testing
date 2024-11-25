@@ -10,7 +10,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.Objects;
 
 @SpringBootApplication
 public class AnimeApplication {
@@ -21,6 +26,11 @@ public class AnimeApplication {
 		SpringApplication.run(AnimeApplication.class, args);
 	}
 
+	@Bean
+	public RestTemplate restTemplate(RestTemplateBuilder builder) {
+		return builder.build();
+	}
+
 	// Making the AdminIntiailizer class static so it can be instantiated for tests
 	@Component
 	public static class AdminIntiailizer implements CommandLineRunner {
@@ -29,9 +39,8 @@ public class AnimeApplication {
 
 		@Autowired
 		public AdminIntiailizer(UserService userService) {
-			this.userService = userService;
+			this.userService = Objects.requireNonNull(userService, "UserService cannot be null");
 		}
-
 		@Transactional
 		@Override
 		public void run(String... args) throws Exception {

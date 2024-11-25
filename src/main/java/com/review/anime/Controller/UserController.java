@@ -47,7 +47,7 @@
 
 
         @PostMapping("/login")
-        private ResponseEntity<Token> userLogin(@RequestBody User user) {
+        ResponseEntity<Token> userLogin(@RequestBody User user) {
             logger.info("Attempted Login with Email Id: {}", user.getEmail());
 
             try {
@@ -63,7 +63,7 @@
 
 
         @PostMapping("/register")
-        private ResponseEntity<String> userRegister(@RequestBody User user) {
+        ResponseEntity<String> userRegister(@RequestBody User user) {
             User exisitingUser = userService.findUserByEmail(user.getEmail());
             if(exisitingUser != null ) {
                 logger.info("Attempted to Create an account with existing Email Id: {}", user.getEmail());
@@ -81,29 +81,42 @@
             return ResponseEntity.ok().body("Registered Successfully.");
         }
 
+
         @PostMapping("/addComment")
         @PreAuthorize("hasAuthority('user:post')")
         public ResponseEntity<String> addComment(@RequestBody ExtraDTO extra, @AuthenticationPrincipal UserDetails userDetails) {
-            String email = userDetails.getUsername();
+            String email = userDetails != null ? userDetails.getUsername() : null;
+
             logger.info("Adding comment for user: {}", email);
 
-            if(email == null) {
+            if (email == null) {
                 logger.info("User email is null");
-                return ResponseEntity.badRequest().build();
+                return ResponseEntity.badRequest().body("User email is required");
             }
 
+            if (extra == null || extra.getRating() == null || extra.getComment() == null || extra.getAnimeId() == null) {
+                logger.info("Invalid input data: {}", extra);
+                return ResponseEntity.badRequest().body("Invalid comment data provided");  // Update this line
+            }
             Review review = new Review();
             review.setRating(extra.getRating());
             review.setComment(extra.getComment());
             review.setAnimeId(extra.getAnimeId());
 
             User user = userService.findUserByEmail(email);
+            if (user == null) {
+                logger.info("User not found for email: {}", email);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
+            }
+
             review.setUser(user);
 
             reviewService.saveReview(review);
+
             logger.info("Comment added successfully for user: {}", email);
             return ResponseEntity.ok().body("Successfully added Comment");
         }
+
 
         @GetMapping("/getComment")
         public ResponseEntity<List<ReviewDTO>> getComment(@RequestParam Integer animeId) {
@@ -144,6 +157,14 @@
             }
 
             List<WatchList> watchList = user.getWatchLists();
+
+            // Check if the watchlist is empty
+            if (watchList == null || watchList.isEmpty()) {
+                logger.info("No watchlist data found for user: {}", email);
+                return ResponseEntity.ok("No watchlist data found");  // Return a simple message when empty
+            }
+
+            // If the watchlist is not empty, continue with the original logic
             ArrayNode dataArray = objectMapper.createArrayNode();
 
             for (WatchList watchListItem : watchList) {
@@ -165,13 +186,15 @@
             return ResponseEntity.ok(watchListJson);
         }
 
+
         @PostMapping("/addWatchList")
         @PreAuthorize("hasAuthority('user:post')")
-        public ResponseEntity<String> addWatchList(@RequestBody WatchList watchList, @AuthenticationPrincipal UserDetails userDetails) {
+        public ResponseEntity<String> addWatchList(@RequestBody WatchList watchList,
+                                                   @AuthenticationPrincipal UserDetails userDetails) {
             String email = userDetails.getUsername();
             logger.info("Adding to watchlist for user: {}", email);
 
-            if ( email == null ) {
+            if (email == null) {
                 logger.info("User email is null");
                 return ResponseEntity.badRequest().body("User not found.");
             }
@@ -180,6 +203,7 @@
             logger.info("Added to watchlist for user: {}", email);
             return ResponseEntity.ok().body(result);
         }
+
 
         @PostMapping("/deleteWatchList")
         @PreAuthorize("hasAuthority('user:post')")
@@ -226,6 +250,12 @@
             String email = userDetails.getUsername();
             logger.info("Attempting to delete comment with id: {} by user: {}", commentId, email);
 
+            // Check for invalid commentId
+            if (commentId <= 0) {
+                logger.error("Invalid comment ID: {}", commentId);
+                return ResponseEntity.badRequest().body("Invalid comment ID");  // Add this check
+            }
+
             User user = userService.findUserByEmail(email);
 
             if (!user.isUserAdmin()) {
@@ -233,8 +263,18 @@
                 return ResponseEntity.badRequest().body("Only Admin is allowed to delete comment.");
             }
 
-            reviewService.deleteComment(commentId);
-            logger.info("Comment with id: {} deleted successfully by user: {}", commentId, email);
-            return ResponseEntity.ok().body("Comment deleted successfully.");
+            try {
+                reviewService.deleteComment(commentId);
+                logger.info("Comment with id: {} deleted successfully by user: {}", commentId, email);
+                return ResponseEntity.ok().body("Comment deleted successfully.");
+            } catch (IllegalArgumentException e) {
+                logger.error("Comment with id: {} not found", commentId);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Comment not found");
+            } catch (Exception e) {
+                logger.error("Error deleting comment with id: {}", commentId, e);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Internal Server Error");
+            }
         }
+
+
     }

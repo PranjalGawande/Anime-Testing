@@ -5,6 +5,7 @@ import com.review.anime.entites.User;
 import com.review.anime.entites.WatchList;
 import com.review.anime.repository.UserRepository;
 import com.review.anime.security.JwtService;
+import jakarta.transaction.Transactional;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +15,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import javax.naming.AuthenticationException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -73,6 +75,7 @@ public class UserService {
     }
 
     // Add new user with email check
+    @Transactional
     public void addUser(User user) {
         logger.info("Adding new user with email: {}", user.getEmail());
         try {
@@ -110,45 +113,69 @@ public class UserService {
 
     // Add anime to the user's watch list
     public String addWatchedAnimeId(WatchList watchList, String email) {
-        logger.info("Adding watched anime ID: {} for user with email: {}", watchList.getAnimeId(), email);
+        logger.info("Adding watched anime ID: {} for user with email: {}",
+                watchList != null ? watchList.getAnimeId() : "null", email);
+
+        if (watchList == null) {
+            logger.error("WatchList is null for email: {}", email);
+            throw new NullPointerException("WatchList cannot be null");
+        }
+
+        if (watchList.getAnimeId() == null) {
+            logger.error("Anime ID is null in WatchList for email: {}", email);
+            throw new NullPointerException("Anime ID cannot be null");
+        }
+
+        if (email == null || email.isEmpty()) {
+            logger.error("Email is null or empty");
+            throw new IllegalArgumentException("Email cannot be null or empty");
+        }
+
         try {
             Optional<User> user = Optional.ofNullable(findUserByEmail(email));
             if (user.isEmpty()) {
                 logger.warn("User not found with email: {}", email);
-                return "User not Found";
+                throw new RuntimeException("User not found");
             }
 
             List<WatchList> watchedAnimeList = user.get().getWatchLists();
-            boolean alreadyInWatchList = false;
-
-            for (WatchList wl : watchedAnimeList) {
-                if (wl.getAnimeId().equals(watchList.getAnimeId())) {
-                    alreadyInWatchList = true;
-                    break;
-                }
+            if (watchedAnimeList == null) {
+                watchedAnimeList = new ArrayList<>();
+                user.get().setWatchLists(watchedAnimeList);
             }
 
-            if (!alreadyInWatchList) {
-                WatchList newWatchList = new WatchList();
-                newWatchList.setAnimeId(watchList.getAnimeId());
-                newWatchList.setImageUrl(watchList.getImageUrl());
-                newWatchList.setTitle(watchList.getTitle());
-                newWatchList.setUser(user.get());
+            boolean alreadyInWatchList = watchedAnimeList.stream()
+                    .anyMatch(wl -> wl.getAnimeId().equals(watchList.getAnimeId()));
 
-                watchedAnimeList.add(newWatchList);
-                userRepository.save(user.get());
-
-                logger.info("Anime ID: {} added to watch list for user with email: {}", watchList.getAnimeId(), email);
-                return "Anime added to watch list.";
-            } else {
-                logger.info("Anime ID: {} already in watch list for user with email: {}", watchList.getAnimeId(), email);
+            if (alreadyInWatchList) {
+                logger.info("Anime ID: {} already in watch list for user with email: {}",
+                        watchList.getAnimeId(), email);
                 return "Anime already in watch list.";
             }
-        } catch (Exception e) {
-            logger.error("Error adding watched anime ID: {} for user with email: {}", watchList.getAnimeId(), email, e);
+
+            WatchList newWatchList = new WatchList();
+            newWatchList.setAnimeId(watchList.getAnimeId());
+            newWatchList.setImageUrl(watchList.getImageUrl());
+            newWatchList.setTitle(watchList.getTitle());
+            newWatchList.setUser(user.get());
+
+            watchedAnimeList.add(newWatchList);
+            userRepository.save(user.get());
+
+            logger.info("Anime ID: {} added to watch list for user with email: {}",
+                    watchList.getAnimeId(), email);
+            return "Anime added to watch list.";
+        } catch (RuntimeException e) {
+            logger.error("Runtime exception: {}", e.getMessage(), e);
             throw e;
+        } catch (Exception e) {
+            logger.error("Unexpected error while adding watched anime ID: {} for user with email: {}",
+                    watchList != null ? watchList.getAnimeId() : "null", email, e);
+            throw new RuntimeException("An error occurred while adding to the watch list", e);
         }
     }
+
+
 
     // Delete anime from user's watch list
     public String deleteWatchList(Integer animeId, User user) {
