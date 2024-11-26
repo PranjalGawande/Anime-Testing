@@ -41,102 +41,40 @@ class AnimeServiceTest {
     }
 
     @Test
-    void testGetCurrentSeasonAnime_Success() throws Exception {
-        String mockResponse = "{\"data\":[{\"title\":\"Anime1\"},{\"title\":\"Anime2\"}]}";
-        when(restTemplate.getForObject(anyString(), eq(String.class)))
-                .thenReturn(mockResponse);
-
-        String response = animeService.getCurrentSeasonAnime(null, null, null);
-
-        // Assert response is not null
-        assertNotNull(response);
-
-        // Parse the response using ObjectMapper (or another JSON library)
-        ObjectMapper objectMapper = new ObjectMapper();
-        JsonNode jsonNode = objectMapper.readTree(response);
-
-        System.out.println(response);
-
-        // Extract titles from the JSON response
-        List<String> titles = new ArrayList<>();
-        for (JsonNode node : jsonNode.get("data")) {
-            titles.add(node.get("title").asText());
-        }
-
-        // Verify titles
-        assertEquals(2, titles.size());
-        assertTrue(titles.contains("Anime1"));
-        assertTrue(titles.contains("Anime2"));
-
-        verify(restTemplate, times(1)).getForObject(anyString(), eq(String.class));
-    }
-
-
-    @Test
-    void testGetCurrentSeasonAnime_EmptyResponse() throws Exception {
-        // Mock the empty response from the API
-        String mockResponse = "{\"data\":[]}";
-        when(restTemplate.getForObject(anyString(), eq(String.class)))
-                .thenReturn(mockResponse);
-
-        // Call the service method with null parameters (or specific values if needed)
-        String response = animeService.getCurrentSeasonAnime(null, null, null);
-
-        // Assertions
-        assertNotNull(response, "Response should not be null");
-        assertEquals(mockResponse, response, "The response should match the mocked empty JSON");
-
-        // Verify that the REST call was made exactly once
-        verify(restTemplate, times(1)).getForObject(anyString(), eq(String.class));
-    }
-
-
-    @Test
-    void testGetCurrentSeasonAnime_HttpClientErrorException() {
-        when(restTemplate.getForObject(anyString(), eq(String.class)))
-                .thenThrow(new HttpClientErrorException(HttpStatus.BAD_REQUEST, "Bad Request"));
-
-        RuntimeException exception = assertThrows(RuntimeException.class,
-                () -> animeService.getCurrentSeasonAnime(null, null, null));
-        System.out.println(exception.getMessage());
-        assertTrue(exception.getMessage().contains("Error fetching current season anime: 400 BAD_REQUEST - Bad Request"));
-        verify(restTemplate, times(1)).getForObject(anyString(), eq(String.class));
-    }
-
-
-
-
-    @Test
     void testGetBackgroundImages_Success() throws Exception {
-        // Prepare test data
         String mockResponse = "{\"data\":[{\"trailer\":{\"images\":{\"maximum_image_url\":\"url1\"}}},{\"trailer\":{\"images\":{\"maximum_image_url\":\"url2\"}}}]}";
         JsonNode mockRootNode = new ObjectMapper().readTree(mockResponse);
 
-        // Mock the restTemplate.getForObject call
         when(restTemplate.getForObject(anyString(), eq(String.class)))
                 .thenReturn(mockResponse);
 
-        // Mock the objectMapper.readTree call
         when(objectMapper.readTree(mockResponse))
                 .thenReturn(mockRootNode);
 
-        // Execute
         List<String> result = animeService.getBackgroundImages();
-//        System.out.println(result);
-        // Verify
         assertNotNull(result);
         assertEquals(2, result.size());
         assertTrue(result.contains("url1"));
         assertTrue(result.contains("url2"));
 
-        // Verify interactions
         verify(restTemplate).getForObject(anyString(), eq(String.class));
         verify(objectMapper).readTree(anyString());
     }
 
     @Test
+    void testGetBackgroundImages_Error() throws Exception {
+        when(restTemplate.getForObject(anyString(), eq(String.class)))
+                .thenThrow(new HttpClientErrorException(HttpStatus.BAD_REQUEST, "Bad Request"));
+
+        RuntimeException exception = assertThrows(RuntimeException.class,
+                () -> animeService.getBackgroundImages());
+        assertTrue(exception.getMessage().contains("Error fetching background images:"));
+
+        verify(restTemplate).getForObject(anyString(), eq(String.class));
+    }
+
+    @Test
     void testGetBackgroundImages_NullResponse() throws Exception {
-        // Mocking null response
         when(restTemplate.getForObject(anyString(), eq(String.class))).thenReturn(null);
 
         List<String> result = animeService.getBackgroundImages();
@@ -149,7 +87,6 @@ class AnimeServiceTest {
 
     @Test
     void testGetBackgroundImages_EmptyResponseString() throws Exception {
-        // Mocking empty string response
         when(restTemplate.getForObject(anyString(), eq(String.class))).thenReturn("");
 
         List<String> result = animeService.getBackgroundImages();
@@ -160,35 +97,123 @@ class AnimeServiceTest {
         verify(restTemplate).getForObject(anyString(), eq(String.class));
     }
 
+    @Test
+    void testGetCurrentSeasonAnime_Success() throws Exception {
+        String mockResponse = "{\"data\":[{\"title\":\"Anime1\"},{\"title\":\"Anime2\"}]}";
+        when(restTemplate.getForObject(anyString(), eq(String.class)))
+                .thenReturn(mockResponse);
 
-//    @Test
-//    void testGetBackgroundImages_EmptyResponse() throws Exception {
-//        // Prepare empty response
-//        String mockResponse = "{\"data\":[]}";
-//        JsonNode mockRootNode = new ObjectMapper().readTree(mockResponse);
-//
-//        // Mock getForObject instead of getForEntity
-//        when(restTemplate.getForObject(anyString(), eq(String.class)))
-//                .thenReturn(mockResponse);
-//
-//        when(objectMapper.readTree(mockResponse))
-//                .thenReturn(mockRootNode);
-//
-//        List<String> result = animeService.getBackgroundImages();
-//
-//        assertNotNull(result);
-//        assertTrue(result.isEmpty());
-//
-//        verify(restTemplate).getForObject(anyString(), eq(String.class));
-//        verify(objectMapper).readTree(anyString());
-//    }
+        String response = animeService.getCurrentSeasonAnime(null, null, null);
 
-//    @Test
-//    void testGetBackgroundImages_EmptyResponse() {
-//        when(restTemplate.getForObject(anyString(), eq(String.class))).thenReturn(""); // Mocking empty response
-//        List<String> images = animeService.getBackgroundImages();
-//        assertTrue(images.isEmpty(), "Expected empty list due to empty response");
-//    }
+        assertNotNull(response);
+        ObjectMapper objectMapper = new ObjectMapper();
+        JsonNode jsonNode = objectMapper.readTree(response);
+
+        System.out.println(response);
+
+        List<String> titles = new ArrayList<>();
+        for (JsonNode node : jsonNode.get("data")) {
+            titles.add(node.get("title").asText());
+        }
+
+        assertEquals(2, titles.size());
+        assertTrue(titles.contains("Anime1"));
+        assertTrue(titles.contains("Anime2"));
+
+        verify(restTemplate, times(1)).getForObject(anyString(), eq(String.class));
+    }
+
+    @Test
+    void testGetCurrentSeasonAnime_Error() {
+        when(restTemplate.getForObject(anyString(), eq(String.class)))
+                .thenThrow(new HttpClientErrorException(HttpStatus.BAD_REQUEST, "Bad Request"));
+
+        RuntimeException exception = assertThrows(RuntimeException.class,
+                () -> animeService.getCurrentSeasonAnime(null, null, null));
+        assertTrue(exception.getMessage().contains("Error fetching current season anime:"));
+
+        verify(restTemplate, times(1)).getForObject(anyString(), eq(String.class));
+    }
+
+    @Test
+    void testGetCurrentSeasonAnime_EmptyResponse() throws Exception {
+        String mockResponse = "{\"data\":[]}";
+        when(restTemplate.getForObject(anyString(), eq(String.class)))
+                .thenReturn(mockResponse);
+
+        String response = animeService.getCurrentSeasonAnime(null, null, null);
+
+        assertNotNull(response, "Response should not be null");
+        assertEquals(mockResponse, response, "The response should match the mocked empty JSON");
+
+        verify(restTemplate, times(1)).getForObject(anyString(), eq(String.class));
+    }
+
+    @Test
+    void getCurrentSeasonAnime_InvalidResponse() {
+        when(restTemplate.getForObject(any(String.class), eq(String.class)))
+                .thenReturn(null);
+
+        String result = animeService.getCurrentSeasonAnime("tv", 1, 1);
+
+        assertEquals("No data available for current season anime", result);
+    }
+
+    @Test
+    void testGetUpcomingAnime_Success() throws Exception {
+        String mockResponse = "{\"data\":[{\"title\":\"UpcomingAnime1\"},{\"title\":\"UpcomingAnime2\"}]}";
+        when(restTemplate.getForObject(anyString(), eq(String.class)))
+                .thenReturn(mockResponse);
+
+        String response = animeService.getUpcomingAnime(1);
+
+        assertNotNull(response);
+        ObjectMapper objectMapper = new ObjectMapper();
+        JsonNode jsonNode = objectMapper.readTree(response);
+
+        System.out.println(response);
+
+        List<String> titles = new ArrayList<>();
+        for (JsonNode node : jsonNode.get("data")) {
+            titles.add(node.get("title").asText());
+        }
+
+        assertEquals(2, titles.size());
+        assertTrue(titles.contains("UpcomingAnime1"));
+        assertTrue(titles.contains("UpcomingAnime2"));
+
+        verify(restTemplate, times(1)).getForObject(anyString(), eq(String.class));
+    }
+
+    @Test
+    void testGetUpcomingAnime_Error() {
+        when(restTemplate.getForObject(anyString(), eq(String.class)))
+                .thenThrow(new HttpClientErrorException(HttpStatus.BAD_REQUEST, "Bad Request"));
+
+        HttpClientErrorException exception = assertThrows(HttpClientErrorException.class,
+                () -> animeService.getUpcomingAnime(1));
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+        assertTrue(exception.getStatusText().contains("Bad Request"));
+
+        verify(restTemplate, times(1)).getForObject(anyString(), eq(String.class));
+    }
+
+
+    @Test
+    void testGetTopAnime_Success() throws Exception {
+        String mockResponse = "{\"data\":[{\"title\":\"TopAnime1\"},{\"title\":\"TopAnime2\"}]}";
+        when(restTemplate.getForObject(anyString(), eq(String.class)))
+                .thenReturn(mockResponse);
+
+        String result = animeService.getTopAnime(1);
+
+        assertNotNull(result);
+        assertTrue(result.contains("TopAnime1"));
+        assertTrue(result.contains("TopAnime2"));
+
+        verify(restTemplate, times(1)).getForObject(anyString(), eq(String.class));
+    }
 
     @Test
     void testGetTopAnime_EmptyResponse() {
@@ -212,48 +237,33 @@ class AnimeServiceTest {
         verify(restTemplate).getForObject(anyString(), eq(String.class));
     }
 
-
-    @Test
-    void testGetTopAnime_Success() throws Exception {
-        // Mock the API response
-        String mockResponse = "{\"data\":[{\"title\":\"TopAnime1\"},{\"title\":\"TopAnime2\"}]}";
-        when(restTemplate.getForObject(anyString(), eq(String.class)))
-                .thenReturn(mockResponse);
-
-        // Call the service method with a valid page number
-        String result = animeService.getTopAnime(1);
-
-        // Assert the response content
-        assertNotNull(result);
-        assertTrue(result.contains("TopAnime1"));
-        assertTrue(result.contains("TopAnime2"));
-
-        // Verify RestTemplate was called once
-        verify(restTemplate, times(1)).getForObject(anyString(), eq(String.class));
-    }
-
-
     @Test
     void testGetTopAnime_InvalidResponse() {
-        // Mock an invalid API response
         String mockResponse = "{}";
         when(restTemplate.getForObject(anyString(), eq(String.class)))
                 .thenReturn(mockResponse);
 
-        // Call the service method with a valid page number
         String result = animeService.getTopAnime(1);
 
-        // Assert the response is not null and contains invalid structure
         assertNotNull(result);
-        assertEquals("{}", result); // Validate the raw response for invalid structure
+        assertEquals("{}", result);
 
-        // Verify RestTemplate was called once
         verify(restTemplate, times(1)).getForObject(anyString(), eq(String.class));
     }
 
     @Test
+    void getTopAnime_WithInvalidPage() {
+        String expectedResponse = "{\"data\": []}";
+        when(restTemplate.getForObject(any(String.class), eq(String.class)))
+                .thenReturn(expectedResponse);
+
+        String result = animeService.getTopAnime(-1);
+
+        assertEquals(expectedResponse, result);
+    }
+
+    @Test
     void getBackgroundImages_LargeDataSet() throws Exception {
-        // Create a large dataset
         StringBuilder jsonBuilder = new StringBuilder("{\"data\": [");
         for (int i = 0; i < 30; i++) {
             if (i > 0) jsonBuilder.append(",");
@@ -413,71 +423,38 @@ class AnimeServiceTest {
     }
 
     @Test
-    void getCurrentSeasonAnime_InvalidResponse() {
-        when(restTemplate.getForObject(any(String.class), eq(String.class)))
-                .thenReturn(null);
-
-        String result = animeService.getCurrentSeasonAnime("tv", 1, 1);
-
-        assertEquals("No data available for current season anime", result);
-    }
-
-    @Test
-    void getTopAnime_WithInvalidPage() {
-        String expectedResponse = "{\"data\": []}";
-        when(restTemplate.getForObject(any(String.class), eq(String.class)))
-                .thenReturn(expectedResponse);
-
-        String result = animeService.getTopAnime(-1);
-
-        assertEquals(expectedResponse, result);
-    }
-
-    @Test
     void getAnimeExplore_WithInvalidGenres() {
-        // Expected response when providing an invalid genre
         String expectedResponse = "{\"data\": []}";
 
-        // Mocking the API response for an invalid genre
         when(restTemplate.getForObject(any(String.class), eq(String.class)))
                 .thenReturn(expectedResponse);
 
-        // Call the method with an invalid genre (e.g., "invalid" genre)
         String result = animeService.getAnimeExplore(1, "invalid");
 
-        // Validate that the correct response is returned
         assertEquals(expectedResponse, result);
     }
 
     @Test
     void getAnimeExplore_WithNullGenres() {
-        // Expected response when genre is null
         String expectedResponse = "{\"data\": []}";
 
-        // Mocking the API response for a null genre
         when(restTemplate.getForObject(any(String.class), eq(String.class)))
                 .thenReturn(expectedResponse);
 
-        // Call the method with null genres
         String result = animeService.getAnimeExplore(1, null);
 
-        // Validate that the correct response is returned
         assertEquals(expectedResponse, result);
     }
 
     @Test
     void getAnimeExplore_WithValidGenres() {
-        // Expected response when providing valid genres
         String expectedResponse = "{\"data\": [{\"title\": \"Anime Title\", \"genre\": \"Action\"}]}";
 
-        // Mocking the API response for a valid genre
         when(restTemplate.getForObject(any(String.class), eq(String.class)))
                 .thenReturn(expectedResponse);
 
-        // Call the method with a valid genre (e.g., "Action")
         String result = animeService.getAnimeExplore(1, "Action");
 
-        // Validate that the correct response is returned
         assertEquals(expectedResponse, result);
     }
 

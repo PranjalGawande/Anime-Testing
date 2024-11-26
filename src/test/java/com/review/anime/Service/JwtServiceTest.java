@@ -84,8 +84,7 @@ class JwtServiceTest {
         // Create an expired token with the original expiration time (5 hours in the future)
         String expiredToken = jwtService.generateToken(user);
 
-        // Move the current time past the token expiration
-        fixedClock = Clock.fixed(Instant.parse("2024-11-24T18:40:06Z"), ZoneId.of("UTC"));  // Adjust time to simulate expiration
+        fixedClock = Clock.fixed(Instant.parse("2024-11-24T18:40:06Z"), ZoneId.of("UTC"));
         jwtService.setClock(fixedClock);
 
         boolean isValid = jwtService.isValid(expiredToken, user);
@@ -103,7 +102,6 @@ class JwtServiceTest {
 
     @Test
     void testIsTokenExpired_ExpiredToken() {
-        // Simulating an expired token
         String expiredToken = Jwts.builder()
                 .setSubject(user.getEmail())
                 .setIssuedAt(new Date(System.currentTimeMillis() - 10000)) // 10 seconds ago
@@ -142,7 +140,6 @@ class JwtServiceTest {
         assertNotNull(secretKey, "Secret key should not be null");
     }
 
-    // Test for exception handling when authentication fails
     @Test
     void testAuthenticate_Fail_UserNotFound() {
         User invalidUser = new User();
@@ -155,17 +152,14 @@ class JwtServiceTest {
     // Login Details Service Test Cases
     @Test
     void loadUserSuccess() {
-        // Arrange
         User mockUser = new User();
         mockUser.setEmail("test@example.com");
         mockUser.setPassword("password");
 
         when(userRepository.findByEmail("test@example.com")).thenReturn(mockUser);
 
-        // Act
         UserDetails userDetails = loginDetailService.loadUserByUsername("test@example.com");
 
-        // Assert
         assertNotNull(userDetails);
         assertEquals("test@example.com", userDetails.getUsername());
         assertEquals("password", userDetails.getPassword());
@@ -174,10 +168,8 @@ class JwtServiceTest {
 
     @Test
     void loadUserFail() {
-        // Arrange
         when(userRepository.findByEmail("notfound@example.com")).thenReturn(null);
 
-        // Act & Assert
         assertThrows(UsernameNotFoundException.class, () -> {
             loginDetailService.loadUserByUsername("notfound@example.com");
         });

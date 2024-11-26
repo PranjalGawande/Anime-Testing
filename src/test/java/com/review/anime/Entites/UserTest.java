@@ -93,7 +93,7 @@ public class UserTest {
     public void testGetWatchLists() {
         User user = new User();
 
-        assertNull(user.getWatchLists()); // Initially null
+        assertNull(user.getWatchLists());
         List<WatchList> watchLists = List.of(new WatchList());
         user.setWatchLists(watchLists);
         assertEquals(watchLists, user.getWatchLists());
@@ -103,12 +103,10 @@ public class UserTest {
     public void testSpringSecurityMethods() {
         User user = new User();
 
-        // Default implementation returns true for all methods
         assertTrue(user.isAccountNonExpired());
         assertTrue(user.isAccountNonLocked());
         assertTrue(user.isCredentialsNonExpired());
 
-        // Test isEnabled based on status
         user.setStatus(true);
         assertTrue(user.isEnabled());
 
@@ -148,7 +146,7 @@ public class UserTest {
         User user = new User();
         user.setRole(null);
 
-        assertEquals(List.of(), user.getAuthorities()); // Verify it returns an empty list
+        assertEquals(List.of(), user.getAuthorities());
     }
 
 

@@ -57,14 +57,10 @@ class ReviewServiceUnitTest {
     void testDeleteComment() {
         Integer commentId = 1;
 
-        // Mock the repository to return Optional.empty() when trying to find the comment
         when(reviewRepository.findById(commentId)).thenReturn(Optional.empty());
 
-        // Act & Assert
-        // Expecting IllegalArgumentException because the comment does not exist
         assertThrows(IllegalArgumentException.class, () -> reviewService.deleteComment(commentId));
 
-        // Verify that deleteById was not called since the comment does not exist
         verify(reviewRepository, times(0)).deleteById(commentId);
     }
 
@@ -83,17 +79,14 @@ class ReviewServiceUnitTest {
     }
     @Test
     void testDeleteCommentThrowsException() {
-        // Arrange
-        Integer nonExistentCommentId = 1; // or any ID you know doesn't exist
+        Integer nonExistentCommentId = 1;
 
-        // Act & Assert
         IllegalArgumentException thrown = assertThrows(
                 IllegalArgumentException.class,
                 () -> reviewService.deleteComment(nonExistentCommentId),
                 "Expected deleteComment() to throw, but it didn't"
         );
 
-        // Verify the exception message
         assertEquals("Comment with ID 1 does not exist.", thrown.getMessage());
     }
 
@@ -111,5 +104,4 @@ class ReviewServiceUnitTest {
         assertEquals(4.5f, reviews.get(0).getRating());
         verify(reviewRepository, times(1)).findAllByAnimeId(animeId);
     }
-
 }

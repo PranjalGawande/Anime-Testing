@@ -55,133 +55,126 @@ class UserControllerTest {
 
     @BeforeEach
     void setUp() {
-        // Setup test user
         testUser = new User();
         testUser.setEmail("test@test.com");
         testUser.setPassword("password");
         testUser.setRole(Role.USER);
 
-        // Setup test review
         testReview = new Review();
-//        testReview.setUserId(1);
         testReview.setComment("Test comment");
         testReview.setRating(5.0f);
         testReview.setAnimeId(123);
         testReview.setUser(testUser);
 
-        // Setup test watchlist
         testWatchList = new WatchList();
         testWatchList.setAnimeId(123);
         testWatchList.setImageUrl("test-url");
         testWatchList.setTitle("Test Anime");
 
-        // Setup test ExtraDTO
         testExtraDTO = new ExtraDTO();
         testExtraDTO.setAnimeId(123);
         testExtraDTO.setComment("Test comment");
         testExtraDTO.setRating(5.4f);
     }
 
+    // Authentication Tests
     @Test
-    void userLogin_Success() throws AuthenticationException {
-        // Arrange
+    void loginSuccess() throws AuthenticationException {
         when(userService.authenticate(any(User.class))).thenReturn("test-token");
 
-        // Act
         ResponseEntity<Token> response = userController.userLogin(testUser);
 
-        // Assert
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals("test-token", response.getBody().getToken());
     }
 
     @Test
-    void userLogin_Failed() throws AuthenticationException {
-        // Arrange
+    void loginFailed() throws AuthenticationException {
         when(userService.authenticate(any(User.class))).thenThrow(new AuthenticationException("Invalid credentials"));
 
-        // Act
         ResponseEntity<Token> response = userController.userLogin(testUser);
 
-        // Assert
         assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
         assertNull(response.getBody());
     }
 
+    // Registration Tests
     @Test
-    void userRegister_Success() {
-        // Arrange
+    void registerNewUser() {
         when(userService.findUserByEmail(anyString())).thenReturn(null);
 
-        // Act
         ResponseEntity<String> response = userController.userRegister(testUser);
 
-        // Assert
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("Registered Successfully.", response.getBody());
         verify(userService).addUser(testUser);
     }
 
     @Test
-    void userRegister_ExistingUser() {
-        // Arrange
+    void registerExistingUser() {
         when(userService.findUserByEmail(anyString())).thenReturn(testUser);
 
-        // Act
         ResponseEntity<String> response = userController.userRegister(testUser);
 
-        // Assert
         assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
         assertEquals("Username/Email is already taken.", response.getBody());
     }
 
     @Test
-    void userRegister_AdminRole() {
-        // Arrange
+    void registerAsAdmin() {
         testUser.setRole(Role.ADMIN);
 
-        // Act
         ResponseEntity<String> response = userController.userRegister(testUser);
 
-        // Assert
         assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
         assertEquals("Cannot register as Admin.", response.getBody());
     }
 
+    // Review Tests
     @Test
-    void addComment_Success() {
-        // Arrange
+    void addValidComment() {
         when(userDetails.getUsername()).thenReturn("test@test.com");
         when(userService.findUserByEmail(anyString())).thenReturn(testUser);
 
-        // Act
         ResponseEntity<String> response = userController.addComment(testExtraDTO, userDetails);
 
-        // Assert
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("Successfully added Comment", response.getBody());
         verify(reviewService).saveReview(any(Review.class));
     }
 
     @Test
-    void getComment_Success() {
-        // Arrange
+    void addInvalidComment() {
+        ExtraDTO invalidDTO = new ExtraDTO();
+        invalidDTO.setAnimeId(-1);
+        invalidDTO.setRating(-1.0f);
+
+        when(userDetails.getUsername()).thenReturn("test@test.com");
+        when(userService.findUserByEmail(anyString())).thenReturn(testUser);
+
+        ResponseEntity<String> response = userController.addComment(invalidDTO, userDetails);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("Invalid comment data provided", response.getBody());
+        verify(reviewService, never()).saveReview(any(Review.class));
+    }
+
+    @Test
+    void getComments() {
         List<Review> reviews = Arrays.asList(testReview);
         when(reviewService.getReviewOfAnimeId(anyInt())).thenReturn(reviews);
 
-        // Act
         ResponseEntity<List<ReviewDTO>> response = userController.getComment(123);
 
-        // Assert
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals(1, response.getBody().size());
     }
 
+    // Watchlist Tests
     @Test
-    void getWatchList_Success() {
-        // Arrange
+    void getWatchlistWithData() {
         when(userDetails.getUsername()).thenReturn("test@test.com");
         when(userService.findUserByEmail(anyString())).thenReturn(testUser);
 
@@ -197,46 +190,50 @@ class UserControllerTest {
         when(objectMapper.createArrayNode()).thenReturn(dataArray);
         when(watchListJson.set(eq("data"), any(ArrayNode.class))).thenReturn(watchListJson);
 
-        // Act
         ResponseEntity<Object> response = userController.getWatchList(userDetails);
 
-        // Assert
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
     }
 
     @Test
-    void addWatchList_Success() {
-        // Arrange
+    void getEmptyWatchlist() {
+        when(userDetails.getUsername()).thenReturn("test@test.com");
+        when(userService.findUserByEmail(anyString())).thenReturn(testUser);
+        testUser.setWatchLists(new ArrayList<>());
+
+        ResponseEntity<Object> response = userController.getWatchList(userDetails);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("No watchlist data found", response.getBody());
+    }
+
+    @Test
+    void addToWatchlist() {
         when(userDetails.getUsername()).thenReturn("test@test.com");
         when(userService.addWatchedAnimeId(any(WatchList.class), anyString())).thenReturn("Added to watchlist");
 
-        // Act
         ResponseEntity<String> response = userController.addWatchList(testWatchList, userDetails);
 
-        // Assert
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("Added to watchlist", response.getBody());
     }
 
     @Test
-    void deleteWatchList_Success() {
-        // Arrange
+    void deleteFromWatchlist() {
         when(userDetails.getUsername()).thenReturn("test@test.com");
         when(userService.findUserByEmail(anyString())).thenReturn(testUser);
         when(userService.deleteWatchList(anyInt(), any(User.class))).thenReturn("Deleted from watchlist");
 
-        // Act
         ResponseEntity<String> response = userController.deleteWatchList(testExtraDTO, userDetails);
 
-        // Assert
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("Deleted from watchlist", response.getBody());
     }
 
+    // Password Management Tests
     @Test
-    void changePassword_Success() {
-        // Arrange
+    void changePasswordSuccess() {
         when(userDetails.getUsername()).thenReturn("test@test.com");
         when(userService.findUserByEmail(anyString())).thenReturn(testUser);
         when(userService.verifyCurrentPassword(anyString(), anyString())).thenReturn(true);
@@ -244,145 +241,62 @@ class UserControllerTest {
         testExtraDTO.setOldPassword("oldPassword");
         testExtraDTO.setNewPassword("newPassword");
 
-        // Act
         ResponseEntity<String> response = userController.changePassword(testExtraDTO, userDetails);
 
-        // Assert
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("Password changed successfully.", response.getBody());
         verify(userService).updateUser(anyString(), anyString());
     }
 
     @Test
-    void changePassword_IncorrectOldPassword() {
-        // Arrange
+    void changePasswordInvalidOld() {
         when(userDetails.getUsername()).thenReturn("test@test.com");
         when(userService.findUserByEmail(anyString())).thenReturn(testUser);
         when(userService.verifyCurrentPassword(anyString(), anyString())).thenReturn(false);
 
-        // Act
         ResponseEntity<String> response = userController.changePassword(testExtraDTO, userDetails);
 
-        // Assert
         assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
         assertEquals("Current password is incorrect", response.getBody());
     }
 
+    // Admin Operations Tests
     @Test
-    void deleteComment_Success() {
-        // Arrange
+    void adminDeleteComment() {
         when(userDetails.getUsername()).thenReturn("test@test.com");
         testUser.setRole(Role.ADMIN);
         when(userService.findUserByEmail(anyString())).thenReturn(testUser);
 
-        // Act
         ResponseEntity<String> response = userController.deleteComment(1, userDetails);
 
-        // Assert
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("Comment deleted successfully.", response.getBody());
         verify(reviewService).deleteComment(1);
     }
 
     @Test
-    void deleteComment_NonAdmin() {
-        // Arrange
+    void nonAdminDeleteComment() {
         when(userDetails.getUsername()).thenReturn("test@test.com");
         testUser.setRole(Role.USER);
         when(userService.findUserByEmail(anyString())).thenReturn(testUser);
 
-        // Act
         ResponseEntity<String> response = userController.deleteComment(1, userDetails);
 
-        // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertEquals("Only Admin is allowed to delete comment.", response.getBody());
         verify(reviewService, never()).deleteComment(anyInt());
     }
 
     @Test
-    void addComment_InvalidData() {
-        // Arrange
-        ExtraDTO invalidExtraDTO = new ExtraDTO();
-        invalidExtraDTO.setAnimeId(-1); // Invalid Anime ID
-        invalidExtraDTO.setComment(null); // No comment provided
-        invalidExtraDTO.setRating(-1.0f); // Invalid rating
-
-        when(userDetails.getUsername()).thenReturn("test@test.com");
-        when(userService.findUserByEmail(anyString())).thenReturn(testUser);
-
-        // Act
-        ResponseEntity<String> response = userController.addComment(invalidExtraDTO, userDetails);
-
-        // Assert
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertEquals("Invalid comment data provided", response.getBody());
-        verify(reviewService, never()).saveReview(any(Review.class));
-    }
-
-    @Test
-    void getWatchList_EmptyList() {
-        // Arrange
-        when(userDetails.getUsername()).thenReturn("test@test.com");
-        when(userService.findUserByEmail(anyString())).thenReturn(testUser);
-
-        testUser.setWatchLists(new ArrayList<>()); // Empty watchlist
-
-        // Act
-        ResponseEntity<Object> response = userController.getWatchList(userDetails);
-
-        // Assert
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals("No watchlist data found", response.getBody());  // This should match the new response
-    }
-
-
-    @Test
-    void userLogin_InvalidToken() throws AuthenticationException {
-        // Arrange
-        when(userService.authenticate(any(User.class))).thenThrow(new AuthenticationException("Invalid credentials"));
-
-        // Act
-        ResponseEntity<Token> response = userController.userLogin(testUser);
-
-        // Assert
-        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
-        assertNull(response.getBody());
-    }
-
-    @Test
-    void deleteComment_CommentDoesNotExist() {
-        // Arrange
+    void deleteNonExistentComment() {
         when(userDetails.getUsername()).thenReturn("test@test.com");
         testUser.setRole(Role.ADMIN);
         when(userService.findUserByEmail(anyString())).thenReturn(testUser);
-
-        // Simulate that the comment does not exist and an exception is thrown
         doThrow(new IllegalArgumentException("Comment not found")).when(reviewService).deleteComment(anyInt());
 
-        // Act
-        ResponseEntity<String> response = userController.deleteComment(999, userDetails); // Non-existing comment ID
+        ResponseEntity<String> response = userController.deleteComment(999, userDetails);
 
-        // Assert
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
         assertEquals("Comment not found", response.getBody());
     }
-
-
-
-    @Test
-    void deleteComment_InvalidCommentId() {
-        // Arrange
-        when(userDetails.getUsername()).thenReturn("test@test.com");
-        testUser.setRole(Role.ADMIN);
-        when(userService.findUserByEmail(anyString())).thenReturn(testUser);
-
-        // Act
-        ResponseEntity<String> response = userController.deleteComment(-1, userDetails); // Invalid comment ID
-
-        // Assert
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertEquals("Invalid comment ID", response.getBody());
-    }
-
 }

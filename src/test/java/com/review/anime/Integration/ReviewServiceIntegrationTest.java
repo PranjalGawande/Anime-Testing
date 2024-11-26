@@ -27,87 +27,67 @@ class ReviewServiceIntegrationTest {
 
     @BeforeAll
     void setup() {
-        // Preparing a test review
         testReview = new Review();
         testReview.setAnimeId(1);
         testReview.setComment("Great anime!");
         testReview.setRating(5.0f);
-
-        // Clean repository before testing
         reviewRepository.deleteAll();
     }
 
+    // Save Review Tests
     @Test
-    @DisplayName("Test saving a review successfully")
-    void testSaveReview() {
-        // Act
+    void saveValidReview() {
         Review savedReview = reviewService.saveReview(testReview);
 
-        // Assert
         assertThat(savedReview).isNotNull();
-        assertThat(savedReview.getCommentId()).isNotNull(); // ID should be generated
+        assertThat(savedReview.getCommentId()).isNotNull();
         assertThat(savedReview.getAnimeId()).isEqualTo(testReview.getAnimeId());
         assertThat(savedReview.getComment()).isEqualTo(testReview.getComment());
         assertThat(savedReview.getRating()).isEqualTo(testReview.getRating());
     }
 
     @Test
-    @DisplayName("Test saving a null review throws exception")
-    void testSaveReviewThrowsException() {
-        // Assert
+    void saveInvalidReview() {
         assertThrows(Exception.class, () -> reviewService.saveReview(null));
     }
 
+    // Fetch Review Tests
     @Test
-    @DisplayName("Test fetching reviews by anime ID")
-    void testGetReviewOfAnimeId() {
-        // Arrange
+    void getReviews() {
         Review savedReview = reviewService.saveReview(testReview);
 
-        // Act
         List<Review> reviews = reviewService.getReviewOfAnimeId(savedReview.getAnimeId());
 
-        // Assert
         assertThat(reviews).isNotEmpty();
         assertThat(reviews.get(0).getAnimeId()).isEqualTo(savedReview.getAnimeId());
         assertThat(reviews.get(0).getComment()).isEqualTo(savedReview.getComment());
     }
 
     @Test
-    @DisplayName("Test fetching reviews for non-existent anime ID returns empty list")
-    void testGetReviewOfNonExistentAnimeId() {
-        // Act
-        List<Review> reviews = reviewService.getReviewOfAnimeId(999); // Non-existent anime ID
-
-        // Assert
+    void getReviewsNotFound() {
+        List<Review> reviews = reviewService.getReviewOfAnimeId(999);
         assertThat(reviews).isEmpty();
     }
 
+    // Delete Review Tests
     @Test
-    @DisplayName("Test deleting a comment successfully")
-    void testDeleteComment() {
-        // Arrange
+    void deleteReview() {
         Review savedReview = reviewService.saveReview(testReview);
         Integer reviewId = savedReview.getCommentId();
 
-        // Act
         reviewService.deleteComment(reviewId);
 
-        // Assert
         Optional<Review> deletedReview = reviewRepository.findById(reviewId);
-        assertThat(deletedReview).isEmpty(); // The review should be deleted
+        assertThat(deletedReview).isEmpty();
     }
 
     @Test
-    @DisplayName("Test deleting a non-existent comment throws exception")
-    void testDeleteNonExistentComment() {
-        // Assert
-        assertThrows(Exception.class, () -> reviewService.deleteComment(9999)); // Non-existent ID
+    void deleteInvalidReview() {
+        assertThrows(Exception.class, () -> reviewService.deleteComment(9999));
     }
 
     @AfterAll
     void cleanup() {
-        // Clean up the repository after all tests
         reviewRepository.deleteAll();
     }
 }

@@ -37,7 +37,6 @@ public class AnimeService {
         try {
             String response = restTemplate.getForObject(JIKAN_API_URL + "seasons/now", String.class);
             logger.info("API Response received");
-            logger.debug("API Response content: {}", response);
 
             if (response == null || response.isEmpty()) {
                 logger.warn("Empty response received from background images API");
@@ -53,12 +52,6 @@ public class AnimeService {
             }
 
             int totalAnimeCount = animeNode.size();
-            if (totalAnimeCount == 0) {
-                logger.warn("No anime data to fetch images from");
-                return imageUrls;
-            }
-
-            // Keep track of used indices to avoid duplicates
             Set<Integer> usedIndices = new HashSet<>();
             int count = Math.min(totalAnimeCount, MAX_IMAGES);
 
@@ -76,28 +69,23 @@ public class AnimeService {
                         .path("maximum_image_url")
                         .asText(null);
 
-                logger.debug("Extracted image URL for index {}: {}", randomIndex, imageUrl);
-
                 if (imageUrl != null && !imageUrl.isEmpty()) {
                     imageUrls.add(imageUrl);
-                    logger.debug("Added image URL to list: {}", imageUrl);
-                } else {
-                    logger.debug("No valid trailer image found for anime index {}", randomIndex);
                 }
             }
 
             logger.info("Successfully fetched {} background images", imageUrls.size());
 
         } catch (HttpClientErrorException e) {
-            logger.error("HTTP error while fetching background images: {} - {}",
-                    e.getStatusCode(), e.getStatusText(), e);
+            logger.error("HTTP error while fetching background images: {} - {}", e.getStatusCode(), e.getStatusText(), e);
+            throw new RuntimeException("Error fetching background images: " + e.getMessage(), e);
         } catch (Exception e) {
             logger.error("Unexpected error while fetching background images", e);
+            throw new RuntimeException("Unexpected error while fetching background images", e);
         }
 
         return imageUrls;
     }
-
 
     public String getCurrentSeasonAnime(String filter, Integer limit, Integer page) {
         logger.info("Fetching current season anime with filter: {}, limit: {}, page: {}", filter, limit, page);
